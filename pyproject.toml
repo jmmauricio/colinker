@@ -26,7 +26,6 @@ dev = [
     "coverage",  # testing
     "mypy",  # linting
     "pytest",  # testing
-    "ruff"  # linting
 ]
 
 [project.urls]

@@ -330,7 +330,13 @@ class Emulator():
             prev = time.perf_counter_ns()
             self.model.step(t/1e9+self.Dt_mid,{})
 
-            print(f"V_POI = {self.model.get_value('V_POI'):3.2f}")
+            for item in self.link.emec_setpoints_dict:
+                u_idx = self.model.inputs_run_list.index(item)
+                self.model.u_run[u_idx] = self.link.emec_setpoints_dict[item]
+
+            #print(self.link.measurements_dict)
+            for item in self.link.measurements_dict:
+                self.link.measurements_dict[item] = self.model.get_value(item)
 
             V_LV = self.model.xy[np.array(self.V_y_idxs)+self.model.N_x]
             asyncio.run(self.calculate_states(V_LV))
@@ -389,10 +395,50 @@ if __name__ == "__main__":
                                f'QRampUp_LV{name}': inv_resp["QRampUp"]})
     print('run ini')
 
-    emu.ini(params_ini)
-    emu.start()
+    
 
     # print('run start_api')
 
     # emu.start_api()
+
+    from colinker.colinker import Linker,modbus_server
+    from multiprocessing import Process
+
+    name = 'LINKER'
+    mode = 'lmev'
+    cfg_dev = 'config_devices.json' 
+    cfg_ctrl = 'config_controller.json'
+
+    link = Linker(name, cfg_dev, cfg_ctrl)
+    emu.link = link
+    link.setup_multiple_device()
+    p_modbus_server = Process(target=modbus_server, args=(link.modbus_linker_ip,link.modbus_linker_port,))
+
+    p_modbus_server.start()
+    time.sleep(1)
+    #link.update_lmev()
+
+    link_thread = Thread(target = link.update_lmev)
+    link_thread.start()
+
+    emu.ini(params_ini)
+    emu.start()
+    # def lin():
+    #     name = 'LINKER'
+    #     mode = 'lmev'
+    #     cfg_dev = 'config_devices.json' 
+    #     cfg_ctrl = 'config_controller.json'
+
+
+    #     link = linker_run(name, mode, cfg_dev, cfg_ctrl)
+    #     emu.link = link
+
+
+    # step_loop_thread = Thread(target = lin)
+    # step_loop_thread.start()
+
+    # time.sleep(2)
+    # print(emu.link)
+
+
     

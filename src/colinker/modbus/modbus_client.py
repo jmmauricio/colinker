@@ -122,43 +122,102 @@ class Modbus_client:
 
 if __name__ == "__main__":
 
-    ip = "192.168.1.100"
-    port = 510
+    import time
+
+    ips = ["127.10.1.1","127.10.1.2"]
+    ports = [50101,50102]
+ 
+    # # active powers
+    # p = int(0.85e6)
+    # reg_number = 1000
+    # mb.write(p, reg_number, 'int32',format = 'CDAB')
+    # reg_number = 2000
+    # mb.write(p, reg_number, 'int32',format = 'CDAB')
 
 
-
-    print('Client started')
-
-    for port in [510,511,512,513]:
+    # reactive powers
+    q = int(0.0e6)
+    for ip,port in zip(ips,ports):
         mb = Modbus_client(ip,port=port)
         mb.start()
-
-        # reactive powers
-        value = int(0.9e6)
         reg_number = 40426
-        mb.write(value, reg_number, 'int32',format = 'CDAB')
+        mb.write(q, reg_number, 'int32',format = 'CDAB')
+        mb.close()
 
-        # active powers
-        value = int(2.0e6)
-        reg_number = 40424
-        mb.write(value, reg_number, 'uint32',format = 'CDAB')
+    time.sleep(0.3)
 
-    for port in [510,511,512,513]:
-        mb = Modbus_client(ip,port=port)
-        mb.start()
-
-        # reactive powers
-        value = int(0.0e6)
-        reg_number = 40426
-        value_echo = mb.read(reg_number, 'int32', format = 'CDAB')
-
-        print(value_echo/1000)
-
-    mb = Modbus_client(ip,port=5002)
+    ip = "127.100.0.1"
+    port = 5100
+    mb = Modbus_client(ip,port=port)
     mb.start()
-    reg_number = 372
-    value_echo = mb.read(reg_number, 'int16', format = 'CDAB')
-    print(value_echo/1000)
+    reg_number = 0
+    value_echo = mb.read(reg_number, 'int16', format = 'AB')
+    print(value_echo)
+
+    mb.close()
+
+
+    # ip = "127.100.0.1"
+    # port = 5100
+    # mb = Modbus_client(ip,port=port)
+    # mb.start()
+
+    # # reactive powers
+    # p = int(0.85e6)
+    # reg_number = 1000
+    # mb.write(p, reg_number, 'int32',format = 'CDAB')
+    # reg_number = 2000
+    # mb.write(p, reg_number, 'int32',format = 'CDAB')
+
+
+    # # reactive powers
+    # q = int(0.0e6)
+    # reg_number = 1004
+    # mb.write(q, reg_number, 'int32',format = 'CDAB')
+    # reg_number = 2004
+    # mb.write(q, reg_number, 'int32',format = 'CDAB')
+
+    # time.sleep(0.1)
+
+    # reg_number = 0
+    # value_echo = mb.read(reg_number, 'int16', format = 'AB')
+    # print(value_echo)
+
+    # mb.close()
+
+
+    # print('Client started')
+
+    # for port in [510,511,512,513]:
+    #     mb = Modbus_client(ip,port=port)
+    #     mb.start()
+
+    #     # reactive powers
+    #     value = int(0.9e6)
+    #     reg_number = 40426
+    #     mb.write(value, reg_number, 'int32',format = 'CDAB')
+
+    #     # active powers
+    #     value = int(2.0e6)
+    #     reg_number = 40424
+    #     mb.write(value, reg_number, 'uint32',format = 'CDAB')
+
+    # for port in [510,511,512,513]:
+    #     mb = Modbus_client(ip,port=port)
+    #     mb.start()
+
+    #     # reactive powers
+    #     value = int(0.0e6)
+    #     reg_number = 40426
+    #     value_echo = mb.read(reg_number, 'int32', format = 'CDAB')
+
+    #     print(value_echo/1000)
+
+    # mb = Modbus_client(ip,port=5002)
+    # mb.start()
+    # reg_number = 372
+    # value_echo = mb.read(reg_number, 'int16', format = 'CDAB')
+    # print(value_echo/1000)
 
     
 

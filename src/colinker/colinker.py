@@ -1,9 +1,7 @@
 #!/usr/bin/env python3
 '''
-python ./colinker.py LINKER lmah -cfg_dev ./emec_emu/pv_1_2_bess/config_devices.json
-python ./colinker.py LV0101 dmlm -cfg_dev ./example/emec_emu/pv_1_2_bess/config_devices.json -cfg_ctrl ./example/emec_emu/pv_1_2_bess/config_controller.json
-python ./colinker.py LV0101 dmah -cfg_dev ./example/emec_emu/pv_1_2_bess/config_devices.json -cfg_ctrl ./example/emec_emu/pv_1_2_bess/config_controller.json
-
+run emulator.pu
+python -m colinker.run_colinker LV0101 dmlm -cfg_dev config_devices.json  -cfg_ctrl config_controller.json
 
 This module can be run attached to a Mininet HOST emulating a device.
 
@@ -33,7 +31,7 @@ import http.client
 import time
 import copy
 import numpy as np
-from modbus import modbus_client
+from colinker.modbus import modbus_client
 
 import logging
 
@@ -56,7 +54,7 @@ logging.Logger.verbose = verbose
 # Get the logger instance
 logger = logging.getLogger(__name__)
 
-logging.basicConfig(format='%(asctime)s %(message)s',level=15)
+logging.basicConfig(format='%(asctime)s %(message)s',level=20)
 
 
 class Linker:
@@ -78,6 +76,8 @@ class Linker:
         self.modbus_linker_port = self.config_devices['linker']['port']
 
         logging.info(self.linker_config)
+
+        
 
 
     def setup_device(self):
@@ -124,7 +124,8 @@ class Linker:
     def setup_multiple_device(self):
 
         self.devices_list = []
-            
+        self.measurements_dict = {}  
+        self.emec_setpoints_dict  = {}   
         # find current device in configuration file config_devices.json
         for item in self.config_devices['devices']:
             self.name = item['emec_id']
@@ -132,6 +133,14 @@ class Linker:
             self.setup_device()
             print([(self.setpoints_list.copy(),self.measurements_list.copy())])
             self.devices_list += [(copy.deepcopy(self.setpoints_list),copy.deepcopy(self.measurements_list))]
+            print(self.measurements_list)
+            for meas in self.measurements_list:
+                self.measurements_dict.update({meas['emec_name']:0.0})
+            for setp in self.setpoints_list:
+                self.emec_setpoints_dict.update({setp['emec_name']:0.0})
+                
+
+        
 
     def update_dmah(self):
         '''
@@ -188,7 +197,7 @@ class Linker:
             response = self.modbus_device_client.modbus_client.read_coils(0,1) 
             if response.bits[0]:
                 break
-            time.sleep(0.5)
+            time.sleep(0.05)
 
     def update_dmlm(self):
         '''
@@ -226,7 +235,7 @@ class Linker:
             response = self.modbus_linker_client.modbus_client.read_coils(0,1) 
             if response.bits[0]:
                 break
-            time.sleep(0.5)
+            time.sleep(0.05)
 
     def update_lmah(self):
         '''
@@ -255,7 +264,7 @@ class Linker:
                     modbus_value = self.modbus_linker_client.read(setpoint['linker_register'], setpoint['type'],format=setpoint['format'])
                     emec_value = modbus_value*setpoint['emec_scale']
                     emec_setpoints_dict.update({setpoint['emec_name']:emec_value})
-                    logging.verbose(f"modbus_value@{setpoint['linker_register']} = {modbus_value}  -> {setpoint['emec_name']} = {emec_value}  ")
+                    logger.verbose(f"modbus_value@{setpoint['linker_register']} = {modbus_value}  -> {setpoint['emec_name']} = {emec_value}  ")
 
                 # write setpoints in the emec emulator server
                 setpoints_json = json.dumps(emec_setpoints_dict)  # Convert dictionary to JSON format
@@ -284,7 +293,54 @@ class Linker:
             response = self.modbus_linker_client.modbus_client.read_coils(0,1) 
             if response.bits[0]:
                 break
-            time.sleep(0.5)
+            time.sleep(0.05)
+
+    def update_lmev(self):
+        '''
+        Linker_MODBUS - EMEC_var
+        '''
+
+        self.modbus_linker_client = modbus_client.Modbus_client(self.modbus_linker_ip,self.modbus_linker_port)
+        logging.info(f"Connected to linker at ip = {self.modbus_linker_ip}, port = {self.modbus_linker_port}")
+        self.modbus_linker_client.start()        
+
+        while True:
+            emec_setpoints_dict = {}
+            for setpoints_list,measurements_list in self.devices_list:
+
+                # Setpoints  ###############################################################################################
+                
+                
+
+                # read setpoints from modbus (real system side)
+                for setpoint in setpoints_list:
+
+                    modbus_value = self.modbus_linker_client.read(setpoint['linker_register'], setpoint['type'],format=setpoint['format'])
+                    emec_value = modbus_value*setpoint['emec_scale']
+                    emec_setpoints_dict.update({setpoint['emec_name']:emec_value})
+                    logger.verbose(f"modbus_value@{setpoint['linker_register']} = {modbus_value}  -> {setpoint['emec_name']} = {emec_value}  ")
+
+                self.emec_setpoints_dict = emec_setpoints_dict
+
+
+                # Measurements #####################################################################################
+
+                measurements_dict = self.measurements_dict
+
+                # write measurements in modbus (real system side)
+                for meas in measurements_list:
+
+                    emec_value = measurements_dict[meas['emec_name']]
+                    modbus_value = int(emec_value/meas['emec_scale'])
+                    logger.verbose(f"{meas['emec_name']} = {emec_value} -> modbus_value@{meas['linker_register']} = {modbus_value}")
+                    self.modbus_linker_client.write(modbus_value, meas['linker_register'], meas['type'],format=meas['format'])
+
+            # Emulator control #####################################################################################
+            response = self.modbus_linker_client.modbus_client.read_coils(0,1) 
+            if response.bits[0]:
+                break
+            time.sleep(0.05)
+
 
 
 def modbus_server(modbus_server_ip,modbus_server_port):
@@ -330,6 +386,16 @@ def linker_run(name, mode,cfg_dev, cfg_ctrl):
         p_modbus_server.start()
         time.sleep(1)
         link.update_lmah()
+
+    if mode == 'lmev': # Linker_MODBUS <-> API_http
+        link.setup_multiple_device()
+        p_modbus_server = Process(target=modbus_server, args=(link.modbus_linker_ip,link.modbus_linker_port,))
+        logger.info(f'Listening at {link.modbus_linker_ip}, port {link.modbus_linker_port}')
+        p_modbus_server.start()
+        time.sleep(1)
+        link.update_lmev()
+
+    return link
     
 if __name__ == "__main__":
 
