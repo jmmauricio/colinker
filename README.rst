@@ -1,4 +1,6 @@
-# colinker
+========
+colinker
+========
 
 
 .. image:: https://img.shields.io/pypi/v/colinker.svg
@@ -21,11 +23,13 @@ COCOON linker
 * Documentation: https://colinker.readthedocs.io.
 
 
-## Features
+Features
+--------
 
 * TODO
 
-## Credits
+Credits
+-------
 
 This package was created with Cookiecutter_ and the `audreyr/cookiecutter-pypackage`_ project template.
 
