@@ -58,7 +58,7 @@ class Modbus_client:
         modbus_response = self.modbus_client.read_holding_registers(address = reg_number, count = 2)
         if format == 'CDAB':
             decoder = BinaryPayloadDecoder.fromRegisters(modbus_response.registers, byteorder=Endian.Big, wordorder=Endian.Little)
-        value = decoder.decode_32bit_uint()
+        value = decoder.decode_32bit_int()
         return value
 
     def write_uint32(self,value, reg_number, format = 'CDAB'):
@@ -124,37 +124,64 @@ if __name__ == "__main__":
 
     import time
 
-    ips = ["127.10.1.1","127.10.1.2"]
-    ports = [50101,50102]
- 
+    ip = "127.0.0.1"
+    port = 5200
+    mb = Modbus_client(ip,port=port)
+    mb.start()
+
     # # active powers
-    # p = int(0.85e6)
+    # p = int(0.0e6)
     # reg_number = 1000
     # mb.write(p, reg_number, 'int32',format = 'CDAB')
     # reg_number = 2000
     # mb.write(p, reg_number, 'int32',format = 'CDAB')
 
+    # # reactive powers
+    # q = int(-0.1e6)
+    # reg_number = 1004
+    # mb.write(q, reg_number, 'int32',format = 'CDAB')
+    # reg_number = 2004
+    # mb.write(q, reg_number, 'int32',format = 'CDAB')
 
-    # reactive powers
-    q = int(0.0e6)
-    for ip,port in zip(ips,ports):
-        mb = Modbus_client(ip,port=port)
-        mb.start()
-        reg_number = 40426
-        mb.write(q, reg_number, 'int32',format = 'CDAB')
-        mb.close()
+    time.sleep(0.1)
 
-    time.sleep(0.3)
-
-    ip = "127.100.0.1"
-    port = 5100
-    mb = Modbus_client(ip,port=port)
-    mb.start()
     reg_number = 0
     value_echo = mb.read(reg_number, 'int16', format = 'AB')
     print(value_echo)
 
     mb.close()
+
+    # ips = ["127.10.1.1","127.10.1.2"]
+    # ports = [50101,50102]
+ 
+    # # # active powers
+    # # p = int(0.85e6)
+    # # reg_number = 1000
+    # # mb.write(p, reg_number, 'int32',format = 'CDAB')
+    # # reg_number = 2000
+    # # mb.write(p, reg_number, 'int32',format = 'CDAB')
+
+
+    # # reactive powers
+    # q = int(0.0e6)
+    # for ip,port in zip(ips,ports):
+    #     mb = Modbus_client(ip,port=port)
+    #     mb.start()
+    #     reg_number = 40426
+    #     mb.write(q, reg_number, 'int32',format = 'CDAB')
+    #     mb.close()
+
+    # time.sleep(0.3)
+
+    # ip = "127.100.0.1"
+    # port = 5100
+    # mb = Modbus_client(ip,port=port)
+    # mb.start()
+    # reg_number = 0
+    # value_echo = mb.read(reg_number, 'int16', format = 'AB')
+    # print(value_echo)
+
+    # mb.close()
 
 
     # ip = "127.100.0.1"

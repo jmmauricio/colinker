@@ -54,7 +54,7 @@ logging.Logger.verbose = verbose
 # Get the logger instance
 logger = logging.getLogger(__name__)
 
-logging.basicConfig(format='%(asctime)s %(message)s',level=20)
+logging.basicConfig(format='%(asctime)s %(message)s',level=15)
 
 
 class Linker:
@@ -77,6 +77,12 @@ class Linker:
 
         logging.info(self.linker_config)
 
+        if 'linker_1' in self.config_devices:
+            self.modbus_linker_1_ip  = self.config_devices['linker_1']['ip']
+            self.modbus_linker_1_port  = self.config_devices['linker_1']['port']
+        if 'linker_2' in self.config_devices:
+            self.modbus_linker_2_ip  = self.config_devices['linker_2']['ip']
+            self.modbus_linker_2_port  = self.config_devices['linker_2']['port']
         
 
 
@@ -341,7 +347,45 @@ class Linker:
                 break
             time.sleep(0.05)
 
+    def update_lmlm(self):
+        '''
+        Linker_MODBUS <-> Linker_MODBUS
+        '''
 
+        self.modbus_linker_1_client = modbus_client.Modbus_client(self.modbus_linker_1_ip,self.modbus_linker_1_port)
+        logging.info(f"Connected to device at ip = {self.modbus_linker_1_ip}, port = {self.modbus_linker_1_port}")
+        self.modbus_linker_1_client.start()  
+
+        self.modbus_linker_2_client = modbus_client.Modbus_client(self.modbus_linker_2_ip,self.modbus_linker_2_port)
+        logging.info(f"Connected to linker at ip = {self.modbus_linker_2_ip}, port = {self.modbus_linker_2_port}")
+        self.modbus_linker_2_client.start()
+                       
+        while True:
+
+            for setpoints_list,measurements_list in self.devices_list:
+                # Setpoints  ###############################################################################################
+                
+                # read setpoints from modbus (real system side)
+                for setpoint in setpoints_list:
+
+                    modbus_value = self.modbus_linker_1_client.read(setpoint['linker_register'], setpoint['type'],format=setpoint['format'])
+                    self.modbus_linker_2_client.write(modbus_value, setpoint['linker_register'], setpoint['type'],format=setpoint['format']) 
+                    logger.verbose(f"linker_1: {setpoint['emec_name']}@{self.modbus_linker_1_ip}:{self.modbus_linker_1_port}/{setpoint['linker_register']} = {modbus_value} -> linker_2: {setpoint['emec_name']}@{self.modbus_linker_2_ip}:{self.modbus_linker_2_port}/{setpoint['linker_register']}")
+
+                # Measurements #####################################################################################
+
+                # write measurements in modbus (real system side)
+                for meas in measurements_list:
+
+                    linker_value = self.modbus_linker_2_client.read(meas['linker_register'], meas['type'],format=meas['format'])
+                    self.modbus_linker_1_client.write(linker_value, meas['linker_register'], meas['type'],format=meas['format'])
+                    logger.verbose(f"linker_2: {meas['emec_name']}@{self.modbus_linker_2_ip}:{self.modbus_linker_2_port}/{meas['linker_register']} = {linker_value} -> linker_1: {meas['emec_name']}@{self.modbus_linker_1_ip}:{self.modbus_linker_1_port}")
+
+                # # Emulator control #####################################################################################
+                # response = self.modbus_linker_1_client.modbus_client.read_coils(0,1) 
+                # if response.bits[0]:
+                #     break
+            time.sleep(0.05)
 
 def modbus_server(modbus_server_ip,modbus_server_port):
 
@@ -356,6 +400,7 @@ def modbus_server(modbus_server_ip,modbus_server_port):
 
     address = (modbus_server_ip, modbus_server_port)
     logging.info(f'Starting modbus server at: {address}')
+    print(f'Starting modbus server at: {address}')
     server = StartTcpServer(context=context,address=address)    
 
 
@@ -394,6 +439,14 @@ def linker_run(name, mode,cfg_dev, cfg_ctrl):
         p_modbus_server.start()
         time.sleep(1)
         link.update_lmev()
+
+    if mode == 'lmlm': # Linker_1_MODBUS <-> Linker_2_MODBUS
+        link.setup_multiple_device()
+        p_modbus_server = Process(target=modbus_server, args=(link.modbus_linker_1_ip,link.modbus_linker_1_port,))
+        p_modbus_server.start()
+        time.sleep(1)
+        link.update_lmlm()
+                
 
     return link
     

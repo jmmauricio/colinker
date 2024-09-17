@@ -406,7 +406,7 @@ if __name__ == "__main__":
 
     name = 'LINKER'
     mode = 'lmev'
-    cfg_dev = 'config_devices.json' 
+    cfg_dev = 'config_devices_mn.json' 
     cfg_ctrl = 'config_controller.json'
 
     link = Linker(name, cfg_dev, cfg_ctrl)
