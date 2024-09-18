@@ -54,7 +54,6 @@ logging.Logger.verbose = verbose
 # Get the logger instance
 logger = logging.getLogger(__name__)
 
-logging.basicConfig(format='%(asctime)s %(message)s',level=15)
 
 
 class Linker:
@@ -234,13 +233,14 @@ class Linker:
             # write measurements in modbus (real system side)
             for meas in self.measurements_list:
 
-                linker_value = self.modbus_linker_client.read(meas['linker_register'], meas['type'],format=meas['format'])
-                self.modbus_device_client.write(linker_value, meas['linker_register'], meas['type'],format=meas['format'])
+                linker_value = self.modbus_linker_client.read(meas['linker_register'], meas['type'], format=meas['format'])
+                self.modbus_device_client.write(linker_value, meas['address'], meas['type'], format=meas['format'])
+                logger.verbose(f"linker: {meas['emec_name']}@{self.modbus_linker_ip}:{self.modbus_linker_port}/{meas['linker_register']} = {linker_value} ({meas['type']}) -> device: {meas['emec_name']}@{self.modbus_ip}:{self.modbus_port}/{meas['address']}")
 
             # Emulator control #####################################################################################
-            response = self.modbus_linker_client.modbus_client.read_coils(0,1) 
-            if response.bits[0]:
-                break
+            # response = self.modbus_linker_client.modbus_client.read_coils(0,1) 
+            # if response.bits[0]:
+            #     break
             time.sleep(0.05)
 
     def update_lmah(self):
@@ -404,7 +404,10 @@ def modbus_server(modbus_server_ip,modbus_server_port):
     server = StartTcpServer(context=context,address=address)    
 
 
-def linker_run(name, mode,cfg_dev, cfg_ctrl):
+def linker_run(name, mode,cfg_dev, cfg_ctrl, loglevel = 'INFO'):
+
+    logging.basicConfig(format='%(asctime)s %(message)s',level=loglevel)
+
 
     link = Linker(name, cfg_dev, cfg_ctrl)
     logger.info(f'Working mode = {mode}')

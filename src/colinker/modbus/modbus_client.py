@@ -82,23 +82,42 @@ class Modbus_client:
         value = decoder.decode_32bit_uint()
         return value
     
-    def write_int16(self,value, reg_number, format = 'AB'):
-        # write INT32
-        if format == 'AB':
-            builder = BinaryPayloadBuilder(byteorder=Endian.Big, wordorder=Endian.Little)
+    # def write_int16(self,value, reg_number, format = 'AB'):
+    #     print(value, format)
+    #     # write INT32
+    #     if format == 'AB':
+    #         builder = BinaryPayloadBuilder(byteorder=Endian.Big, wordorder=Endian.Little)
 
-        builder.add_16bit_int(value)
-        builder.to_registers()
-        payload = builder.build()
+    #     builder.add_16bit_int(value)
+    #     builder.to_registers()
+    #     payload = builder.build()
         
+    #     response  = self.modbus_client.write_registers(reg_number, payload,skip_encode=True) 
+ 
+    def write_int16(self,value, reg_number, format = 'AB'):
+
+        # Create a payload builder
+        builder = BinaryPayloadBuilder(byteorder=Endian.Big, wordorder=Endian.Big)
+
+        # Add a 16-bit integer (2-byte) to the payload
+        builder.add_16bit_int(int(value))
+
+        # Build the payload
+        payload = builder.build()
+
+        # The address of the register to write to
+        register_address = reg_number  # Replace with the actual register address
+
+        # Write the payload (16-bit integer) to the register
         response  = self.modbus_client.write_registers(reg_number, payload,skip_encode=True) 
+
 
     def read_int16(self,reg_number, format = 'AB'):
         # read INT16
         modbus_response = self.modbus_client.read_holding_registers(address = reg_number, count = 1)
-        # if format == 'AB':
-        #     decoder = BinaryPayloadDecoder.fromRegisters(modbus_response.registers, byteorder=Endian.Big)
-        value = modbus_response.registers[0]
+        if format == 'AB':
+            decoder = BinaryPayloadDecoder.fromRegisters(modbus_response.registers, byteorder=Endian.Big, wordorder=Endian.Little)
+        value = decoder.decode_16bit_int()
         return value
 
     def write_uint16(self,value, reg_number, format = 'AB'):
@@ -147,7 +166,6 @@ if __name__ == "__main__":
 
     reg_number = 0
     value_echo = mb.read(reg_number, 'int16', format = 'AB')
-    print(value_echo)
 
     mb.close()
 
