@@ -58,11 +58,21 @@ logger = logging.getLogger(__name__)
 
 class Linker:
 
-    def __init__(self, name, cfg_dev, cfg_ctrl) -> None:
+    def __init__(self, name, cfg_dev, cfg_ctrl='') -> None:
+        
         self.name = name
-         
-        with open(cfg_ctrl,'r') as fobj:
-            self.config_controller = json.loads(fobj.read())
+        self.cfg_ctrl = cfg_ctrl
+        self.N_measurements = 0
+        self.N_setpoints = 0
+
+        if not self.cfg_ctrl == '':   # wether use or not controller ingelectus configuration
+            self.controller_setup = True
+        else: 
+            self.controller_setup = False
+
+        if self.controller_setup:
+            with open(cfg_ctrl,'r') as fobj:
+                self.config_controller = json.loads(fobj.read())
 
         with open(cfg_dev,'r') as fobj:
             self.config_devices = json.loads(fobj.read())
@@ -87,7 +97,6 @@ class Linker:
 
     def setup_device(self):
         
-        print(self.name)
         # find current device in configuration file config_devices.json
         for item in self.config_devices['devices']:
             if item['emec_id'] == self.name:
@@ -101,26 +110,29 @@ class Linker:
         self.modbus_ip = item['modbus_ip']
         self.modbus_port = item['modbus_port']
 
-        # get adapter_ID in config_controller.json
-        for item in self.config_controller['configuration']['collector']['config']['devices']:
-            if item['id'] ==  self.linker_config['ing_id']:
-                self.adapterID = item["adapterID"]
-                break
+        if self.controller_setup:
+            # get adapter_ID in config_controller.json
+            for item in self.config_controller['configuration']['collector']['config']['devices']:
+                if item['id'] ==  self.linker_config['ing_id']:
+                    self.adapterID = item["adapterID"]
+                    break
 
-        for item in self.config_controller["configuration"]["collector"]["config"]["adapters"]:
-            if item['id'] == self.adapterID:
-                self.adapter = item
-                break
-
+            for item in self.config_controller["configuration"]["collector"]["config"]["adapters"]:
+                if item['id'] == self.adapterID:
+                    self.adapter = item
+                    break
+        
         for item in self.setpoints_list:
-            item.update(self.adapter['config'][item['ing_name']])
+            self.N_setpoints += 1
+            if self.controller_setup: item.update(self.adapter['config'][item['ing_name']])
             emec_name = f"{item['emec_prefix']}_{self.device_data['emec_id']}"
             item.update({'emec_name':emec_name})
             linker_reg = self.device_data['linker_reg_0'] + item['linker_reg']
             item.update({'linker_register':linker_reg})
 
         for item in self.measurements_list:
-            item.update(self.adapter['config'][item['ing_name']])
+            self.N_measurements += 1
+            if self.controller_setup: item.update(self.adapter['config'][item['ing_name']])
             emec_name = f"{item['emec_prefix']}_{self.device_data['emec_id']}"
             item.update({'emec_name':emec_name})
             linker_reg = self.device_data['linker_reg_0'] + item['linker_reg']
@@ -134,11 +146,8 @@ class Linker:
         # find current device in configuration file config_devices.json
         for item in self.config_devices['devices']:
             self.name = item['emec_id']
-            print(self.name)
             self.setup_device()
-            print([(self.setpoints_list.copy(),self.measurements_list.copy())])
             self.devices_list += [(copy.deepcopy(self.setpoints_list),copy.deepcopy(self.measurements_list))]
-            print(self.measurements_list)
             for meas in self.measurements_list:
                 self.measurements_dict.update({meas['emec_name']:0.0})
             for setp in self.setpoints_list:
